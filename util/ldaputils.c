@@ -23,7 +23,8 @@
  */
 
 #include "ldaputils.h"
-
+#ifdef __APPLE__
+#else
 #ifdef ENABLE_LDAP_AUTH
 
 #include <glib.h>        /* for g_free, gchar, g_warning, g_strdup */
@@ -563,3 +564,4 @@ ldap_auth_info_free (ldap_auth_info_t info)
 }
 
 #endif /* ENABLE_LDAP_AUTH */
+#endif

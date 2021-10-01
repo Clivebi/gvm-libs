@@ -35,6 +35,10 @@
 #include <sys/stat.h>    /* for stat, S_ISDIR */
 #include <time.h>        /* for tm, strptime, localtime, time, time_t */
 
+#ifdef __APPLE__
+#define eaccess access
+#endif
+
 #undef G_LOG_DOMAIN
 /**
  * @brief GLib logging domain.

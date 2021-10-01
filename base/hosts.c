@@ -34,7 +34,11 @@
 #include <arpa/inet.h> /* for inet_pton, inet_ntop */
 #include <assert.h>    /* for assert */
 #include <ctype.h>     /* for isdigit */
+#ifdef __APPLE__
+#include <sys/malloc.h>
+#else
 #include <malloc.h>
+#endif
 #include <netdb.h>      /* for getnameinfo, NI_NAMEREQD */
 #include <stdint.h>     /* for uint8_t, uint32_t */
 #include <stdio.h>      /* for sscanf, perror */
@@ -1070,7 +1074,10 @@ gvm_hosts_deduplicate (gvm_hosts_t *hosts)
   hosts->count -= duplicates;
   hosts->duplicated += duplicates;
   hosts->current = 0;
+  #ifdef __APPLE__
+  #else
   malloc_trim (0);
+  #endif
 }
 
 /**
@@ -1265,7 +1272,10 @@ gvm_hosts_new_with_max (const gchar *hosts_str, unsigned int max_hosts)
     gvm_hosts_deduplicate (hosts);
 
   g_strfreev (split);
+  #ifdef __APPLE__
+  #else
   malloc_trim (0);
+  #endif
   return hosts;
 }
 

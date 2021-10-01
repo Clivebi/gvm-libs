@@ -37,15 +37,15 @@ set (HEADERS array.h credentials.h cvss.h drop_privileges.h hosts.h logging.h
              networking.h nvti.h pidfile.h prefs.h proctitle.h pwpolicy.h
              settings.h strings.h version.h)
 
-if (BUILD_STATIC)
+if (NOT BUILD_SHARED_LIBS)
   set (LIBGVM_BASE_NAME gvm_base_static)
   add_library (gvm_base_static STATIC ${FILES})
   set_target_properties (gvm_base_static PROPERTIES OUTPUT_NAME "gvm_base")
   set_target_properties (gvm_base_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
   set_target_properties (gvm_base_static PROPERTIES PUBLIC_HEADER "${HEADERS}")
-endif (BUILD_STATIC)
+endif (NOT BUILD_SHARED_LIBS)
 
-if (BUILD_SHARED)
+if (BUILD_SHARED_LIBS)
   set (LIBGVM_BASE_NAME gvm_base_shared)
   add_library (gvm_base_shared SHARED ${FILES})
   set_target_properties (gvm_base_shared PROPERTIES OUTPUT_NAME "gvm_base")
@@ -55,7 +55,7 @@ if (BUILD_SHARED)
   set_target_properties (gvm_base_shared PROPERTIES PUBLIC_HEADER "${HEADERS}")
 
   target_link_libraries (gvm_base_shared LINK_PRIVATE ${GLIB_LDFLAGS} ${LINKER_HARDENING_FLAGS})
-endif (BUILD_SHARED)
+endif (BUILD_SHARED_LIBS)
 
 set (LIBGVM_BASE_NAME
      ${LIBGVM_BASE_NAME}
@@ -148,19 +148,19 @@ install (DIRECTORY DESTINATION ${GVM_PID_DIR})
 install (FILES ${CMAKE_BINARY_DIR}/libgvm_base.pc
          DESTINATION ${LIBDIR}/pkgconfig)
 
-if (BUILD_STATIC)
+if (NOT BUILD_SHARED_LIBS)
   install (TARGETS gvm_base_static
     RUNTIME DESTINATION ${BINDIR}
     ARCHIVE DESTINATION ${LIBDIR}
     PUBLIC_HEADER DESTINATION "${INCLUDEDIR}/gvm/base")
-endif (BUILD_STATIC)
+endif (NOT BUILD_SHARED_LIBS)
 
-if (BUILD_SHARED)
+if (BUILD_SHARED_LIBS)
   install (TARGETS gvm_base_shared
     RUNTIME DESTINATION ${BINDIR}
     LIBRARY DESTINATION ${LIBDIR}
     ARCHIVE DESTINATION ${LIBDIR}
     PUBLIC_HEADER DESTINATION "${INCLUDEDIR}/gvm/base")
-endif (BUILD_SHARED)
+endif (BUILD_SHARED_LIBS)
 
 ## End

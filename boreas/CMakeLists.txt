@@ -41,6 +41,7 @@ if (LIBNET_CONFIG)
   execute_process (COMMAND libnet-config --cflags
     OUTPUT_VARIABLE LIBNET_CFLAGS
     OUTPUT_STRIP_TRAILING_WHITESPACE)
+  string(REPLACE "-I" "" LIBNET_INCLUDE_DIRS "${LIBNET_CFLAGS}")
 else (LIBNET_CONFIG)
   message (STATUS "libnet-config not found, using defaults...")
   set (LIBNET_LDFLAGS "-L/usr/lib -lnet")
@@ -65,6 +66,7 @@ if (PCAP_CONFIG)
   execute_process (COMMAND pcap-config --cflags
     OUTPUT_VARIABLE PCAP_CFLAGS
     OUTPUT_STRIP_TRAILING_WHITESPACE)
+    string(REPLACE "-I" "" PCAP_INCLUDE_DIRS "${PCAP_CFLAGS}")
 else (PCAP_CONFIG)
   message (STATUS "pcap-config not found, using defaults...")
   set (PCAP_LDFLAGS "-L/usr/lib -lpcap")
@@ -75,21 +77,21 @@ find_package (Threads)
 
 pkg_check_modules (GLIB REQUIRED glib-2.0>=2.42)
 
-include_directories (${GLIB_INCLUDE_DIRS})
+include_directories (${GLIB_INCLUDE_DIRS} ${LIBNET_INCLUDE_DIRS} ${PCAP_INCLUDE_DIRS})
 
 set (FILES alivedetection.c arp.c boreas_error.c boreas_io.c cli.c ping.c sniffer.c util.c)
 
 set (HEADERS alivedetection.h arp.h boreas_error.h boreas_io.h cli.h ping.h sniffer.h util.h)
 
-if (BUILD_STATIC)
+if (NOT BUILD_SHARED_LIBS)
   set (LIBGVM_BOREAS_NAME gvm_boreas_static)
   add_library (gvm_boreas_static STATIC ${FILES})
   set_target_properties (gvm_boreas_static PROPERTIES OUTPUT_NAME "gvm_boreas")
   set_target_properties (gvm_boreas_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
   set_target_properties (gvm_boreas_static PROPERTIES PUBLIC_HEADER "${HEADERS}")
-endif (BUILD_STATIC)
+endif (NOT BUILD_SHARED_LIBS)
 
-if (BUILD_SHARED)
+if (BUILD_SHARED_LIBS)
   set (LIBGVM_BOREAS_NAME gvm_boreas_shared)
   add_library (gvm_boreas_shared SHARED ${FILES})
   set_target_properties (gvm_boreas_shared PROPERTIES OUTPUT_NAME "gvm_boreas")
@@ -102,8 +104,9 @@ if (BUILD_SHARED)
                          ${GLIB_LDFLAGS}
                          ${LIBNET_LDFLAGS}
                          ${LINKER_HARDENING_FLAGS}
-                         ${CMAKE_THREAD_LIBS_INIT})
-endif (BUILD_SHARED)
+                         ${PCAP_LDFLAGS}
+                         ${CMAKE_THREAD_LIBS_INIT} gvm_base_shared gvm_util_shared)
+endif (BUILD_SHARED_LIBS)
 
 set (LIBGVM_BOREAS_NAME
      ${LIBGVM_BOREAS_NAME}
@@ -196,19 +199,19 @@ configure_file (libgvm_boreas.pc.in ${CMAKE_BINARY_DIR}/libgvm_boreas.pc @ONLY)
 install (FILES ${CMAKE_BINARY_DIR}/libgvm_boreas.pc
          DESTINATION ${LIBDIR}/pkgconfig)
 
-if (BUILD_STATIC)
+if (NOT BUILD_SHARED_LIBS)
   install (TARGETS gvm_boreas_static
     RUNTIME DESTINATION ${BINDIR}
     ARCHIVE DESTINATION ${LIBDIR}
     PUBLIC_HEADER DESTINATION "${INCLUDEDIR}/gvm/boreas")
-endif (BUILD_STATIC)
+endif (NOT BUILD_SHARED_LIBS)
 
-if (BUILD_SHARED)
+if (BUILD_SHARED_LIBS)
   install (TARGETS gvm_boreas_shared
     RUNTIME DESTINATION ${BINDIR}
     LIBRARY DESTINATION ${LIBDIR}
     ARCHIVE DESTINATION ${LIBDIR}
     PUBLIC_HEADER DESTINATION "${INCLUDEDIR}/gvm/boreas")
-endif (BUILD_SHARED)
+endif (BUILD_SHARED_LIBS)
 
 ## End

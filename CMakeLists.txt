@@ -33,15 +33,8 @@ if (NOT CMAKE_BUILD_TYPE)
   set (CMAKE_BUILD_TYPE Debug)
 endif (NOT CMAKE_BUILD_TYPE)
 
-OPTION(BUILD_STATIC "Build static versions of the libraries" OFF)
 OPTION(ENABLE_COVERAGE "Enable support for coverage analysis" OFF)
 OPTION(BUILD_TESTS "Build tests for the libraries" OFF)
-
-if (NOT BUILD_STATIC)
-  set (BUILD_SHARED ON)
-else (NOT BUILD_STATIC)
-  set (BUILD_SHARED OFF)
-endif (NOT BUILD_STATIC)
 
 ## Retrieve git revision (at configure time)
 find_package (Git)
@@ -87,7 +80,7 @@ endif (NOT CMAKE_BUILD_TYPE MATCHES "Release")
 
 # Set dev version if this is a development version and not a full release,
 # unset (put value 0 or delete line) before a full release and reset after.
-set (PROJECT_DEV_VERSION 1)
+set (PROJECT_DEV_VERSION 0)
 
 # If PROJECT_DEV_VERSION is set, the version string will be set to:
 #   "major.minor.patch~dev${PROJECT_DEV_VERSION}${GIT_REVISION}"
@@ -129,12 +122,18 @@ include (CPack)
 
 ## Variables
 
+if (CMAKE_SYSTEM_NAME MATCHES "Darwin")  
+  if (NOT CMAKE_INSTALL_PREFIX)
+    set (CMAKE_INSTALL_PREFIX,"/usr/local/")
+  endif(NOT CMAKE_INSTALL_PREFIX)
+endif()
+
 if (SYSCONF_INSTALL_DIR)
   set (SYSCONFDIR "${SYSCONF_INSTALL_DIR}")
 endif (SYSCONF_INSTALL_DIR)
 
 if (NOT SYSCONFDIR)
-  set (SYSCONFDIR "/etc")
+  set (SYSCONFDIR "${CMAKE_INSTALL_PREFIX}/etc")
 endif (NOT SYSCONFDIR)
 
 if (NOT EXEC_PREFIX)
@@ -162,7 +161,7 @@ if (NOT LIBDIR)
 endif (NOT LIBDIR)
 
 if (NOT LOCALSTATEDIR)
-  set (LOCALSTATEDIR "/var")
+  set (LOCALSTATEDIR "${CMAKE_INSTALL_PREFIX}/var")
 endif (NOT LOCALSTATEDIR)
 
 if (NOT INCLUDEDIR)
@@ -173,12 +172,8 @@ if (NOT DATADIR)
   set (DATADIR "${CMAKE_INSTALL_PREFIX}/share")
 endif (NOT DATADIR)
 
-if (NOT GVM_RUN_DIR)
-  set (GVM_RUN_DIR  "/run/gvm")
-endif (NOT GVM_RUN_DIR)
-
 if (NOT GVM_PID_DIR)
-  set (GVM_PID_DIR "${GVM_RUN_DIR}")
+  set (GVM_PID_DIR "${LOCALSTATEDIR}/run")
 endif (NOT GVM_PID_DIR)
 
 if (NOT GVM_SYSCONF_DIR)
@@ -200,7 +195,11 @@ if (ENABLE_COVERAGE)
 endif (ENABLE_COVERAGE)
 
 set (HARDENING_FLAGS "-Wformat -Wformat-security -D_FORTIFY_SOURCE=2 -fstack-protector")
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")  
 set (LINKER_HARDENING_FLAGS "-Wl,-z,relro -Wl,-z,now")
+else()
+set (LINKER_HARDENING_FLAGS "-Wl,")
+endif()
 set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wall -Wextra -Werror ${COVERAGE_FLAGS}")
 set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${HARDENING_FLAGS}")
 
@@ -243,6 +242,12 @@ if (NOT SKIP_SRC)
   add_subdirectory (osp)
   add_subdirectory (gmp)
 endif (NOT SKIP_SRC)
+
+if (BUILD_SHARED_LIBS)
+  add_dependencies(gvm_util_shared gvm_base_shared)
+  add_dependencies(gvm_boreas_shared gvm_util_shared)
+  add_dependencies(gvm_boreas_shared gvm_base_shared)
+endif (BUILD_SHARED_LIBS)
 
 ## Documentation
 

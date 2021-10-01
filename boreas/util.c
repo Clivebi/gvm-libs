@@ -24,10 +24,16 @@
 #include <errno.h>
 #include <glib.h>
 #include <ifaddrs.h> /* for getifaddrs() */
-#include <linux/sockios.h>
 #include <net/ethernet.h>
-#include <net/if.h>           /* for if_nametoindex() */
+#include <net/if.h> /* for if_nametoindex() */
+#ifdef __APPLE__
+#include <net/if_dl.h>
+#include <netinet/in.h>
+#include <sys/sockio.h>
+#else
+#include <linux/sockios.h>
 #include <netpacket/packet.h> /* for sockaddr_ll */
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -82,6 +88,31 @@ in_cksum (uint16_t *addr, int len)
   return (answer);
 }
 
+#ifdef __APPLE__
+int
+get_mac_address_Darwin (unsigned char *mac_addr, const char *if_name)
+{
+  struct ifaddrs *iflist, *cur = NULL;
+  int error = -1;
+  if (getifaddrs (&iflist) == 0)
+    {
+      for (cur = iflist;; cur = cur->ifa_next)
+        {
+          if ((cur->ifa_addr->sa_family == AF_LINK)
+              && (strcmp (cur->ifa_name, if_name) == 0) && cur->ifa_addr)
+            {
+              struct sockaddr_dl *sdl = (struct sockaddr_dl *) cur->ifa_addr;
+              memcpy (mac_addr, LLADDR (sdl), sdl->sdl_alen);
+              error = 0;
+              break;
+            }
+        }
+
+      freeifaddrs (iflist);
+    }
+  return errno;
+}
+#endif
 /**
  * @brief Get the source mac address of the given interface
  * or of the first non lo interface.
@@ -95,6 +126,9 @@ in_cksum (uint16_t *addr, int len)
 int
 get_source_mac_addr (char *interface, uint8_t *mac)
 {
+#ifdef __APPLE__
+  return get_mac_address_Darwin (mac, interface);
+#else
   struct ifaddrs *ifaddr = NULL;
   struct ifaddrs *ifa = NULL;
   int interface_provided = 0;
@@ -133,6 +167,7 @@ get_source_mac_addr (char *interface, uint8_t *mac)
       freeifaddrs (ifaddr);
     }
   return 0;
+#endif
 }
 
 /**
@@ -516,6 +551,12 @@ set_socket (socket_type_t socket_type, int *scanner_socket)
       break;
     case ARPV4:
       {
+#ifdef __APPLE__
+        g_warning (
+          "%s: failed to open ARPV4 socket: macos not support this type",
+          __func__);
+        return BOREAS_OPENING_SOCKET_FAILED;
+#else
         soc = socket (PF_PACKET, SOCK_RAW, htons (ETH_P_ALL));
         if (soc < 0)
           {
@@ -523,6 +564,7 @@ set_socket (socket_type_t socket_type, int *scanner_socket)
                        strerror (errno));
             return BOREAS_OPENING_SOCKET_FAILED;
           }
+#endif
       }
       break;
     default:
@@ -628,7 +670,13 @@ static int
 so_sndbuf_empty (int soc, int *err)
 {
   int cur_so_sendbuf = -1;
+#ifdef __APPLE__
+  socklen_t size = sizeof (cur_so_sendbuf);
+
+  if (-1 == getsockopt (soc, SOL_SOCKET, SO_NWRITE, &cur_so_sendbuf, &size))
+#else
   if (ioctl (soc, SIOCOUTQ, &cur_so_sendbuf) == -1)
+#endif
     {
       g_warning ("%s: ioctl error: %s", __func__, strerror (errno));
       *err = -1;

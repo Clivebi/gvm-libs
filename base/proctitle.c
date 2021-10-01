@@ -39,9 +39,12 @@
  * @brief Access to the executable's name.
  */
 extern const char *__progname;
-#ifndef __FreeBSD__
+
+#if defined __FreeBSD__ || defined __APPLE__
+#else
 extern const char *__progname_full;
 #endif
+
 static int argv_len;
 static char **old_argv;
 extern char **environ;
@@ -58,17 +61,18 @@ proctitle_init (int argc, char **argv)
 {
   int i = 0;
   char **envp = environ;
-#ifndef __FreeBSD__
-  char *new_progname, *new_progname_full;
-#else
+#if defined __FreeBSD__ || defined __APPLE__
   char *new_progname;
+#else
+  char *new_progname, *new_progname_full;
 #endif
 
   if (argv == NULL)
     return;
 
   new_progname = strdup (__progname);
-#ifndef __FreeBSD__
+#if defined __FreeBSD__ || defined __APPLE__
+#else
   new_progname_full = strdup (__progname_full);
 #endif
 
@@ -92,7 +96,8 @@ proctitle_init (int argc, char **argv)
   /* Seems like these are in the moved environment, so reset them.  Idea from
    * proctitle.cpp in KDE libs.  */
   __progname = new_progname;
-#ifndef __FreeBSD__
+#if defined __FreeBSD__ || defined __APPLE__
+#else
   __progname_full = new_progname_full;
 #endif
 }

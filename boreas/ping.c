@@ -21,12 +21,25 @@
 
 #include "arp.h"
 #include "util.h"
+#ifdef __APPLE__
+typedef __uint16_t n_short;             /* short as received from the net */
+typedef __uint32_t n_long;              /* long as received from the net */
 
+typedef __uint32_t n_time;              /* ms since 00:00 GMT, byte rev */
+
+#define s6_addr16   __u6_addr.__u6_addr16
+
+#define s6_addr32   __u6_addr.__u6_addr32
+#endif
 #include <arpa/inet.h>
 #include <errno.h>
 #include <glib.h>
 #include <ifaddrs.h> /* for getifaddrs() */
+#ifdef __APPLE__
+#include <netinet/ip.h>
+#else
 #include <linux/sockios.h>
+#endif
 #include <netinet/icmp6.h>
 #include <netinet/in.h>
 #include <netinet/ip6.h>
@@ -103,6 +116,15 @@ throttle (int soc, int so_sndbuf)
 {
   // g_warning ("%s: so_sndbuf %d", __func__, so_sndbuf);
   int cur_so_sendbuf = -1;
+ #ifdef __APPLE__
+   socklen_t size = sizeof(cur_so_sendbuf);
+
+  if (-1 == getsockopt(soc, SOL_SOCKET, SO_NWRITE, &cur_so_sendbuf,&size)){
+      g_warning ("%s: ioctl error: %s", __func__, strerror (errno));
+      usleep (100000);
+      return;
+  }
+  #else
 
   /* Get the current size of the output queue size */
   if (ioctl (soc, SIOCOUTQ, &cur_so_sendbuf) == -1)
@@ -111,7 +133,7 @@ throttle (int soc, int so_sndbuf)
       usleep (100000);
       return;
     }
-
+  #endif
   /* If setting of so_sndbuf or cur_so_sendbuf failed we do not enter the
    * throttling loop. Normally this should not occur but we really do not want
    * to get into an infinite loop here. */
@@ -121,8 +143,13 @@ throttle (int soc, int so_sndbuf)
       while (cur_so_sendbuf >= so_sndbuf)
         {
           usleep (100000);
+          #ifdef __APPLE__
+          size = sizeof(cur_so_sendbuf);
+          if (-1 == getsockopt(soc, SOL_SOCKET, SO_NWRITE, &cur_so_sendbuf,&size))
+          #else
           if (ioctl (soc, SIOCOUTQ, &cur_so_sendbuf) == -1)
-            {
+          #endif
+           {
               g_warning ("%s: ioctl error: %s", __func__, strerror (errno));
               usleep (100000);
               /* Do not risk getting into infinite loop */
@@ -195,26 +222,40 @@ send_icmp_v6 (int soc, struct in6_addr *dst, int type)
 static void
 send_icmp_v4 (int soc, struct in_addr *dst)
 {
-  /* datalen + MAXIPLEN + MAXICMPLEN */
+ /* datalen + MAXIPLEN + MAXICMPLEN */
   char sendbuf[56 + 60 + 76];
   struct sockaddr_in soca;
 
   int len;
   int datalen = 56;
-  struct icmphdr *icmp;
 
-  /* Throttling related variables */
+    /* Throttling related variables */
   static int so_sndbuf = -1; // socket send buffer
   static int init = -1;
 
-  icmp = (struct icmphdr *) sendbuf;
+  #ifdef __APPLE__
+  struct icmp *icmp;
+   icmp = (struct icmp *) sendbuf;
+  #else
+  struct icmphdr *icmp;
+   icmp = (struct icmphdr *) sendbuf;
+  #endif
+
+#ifdef __APPLE__
+  icmp->icmp_type = ICMP_ECHO;
+  icmp->icmp_code = 0;
+
+  len = 8 + datalen;
+  icmp->icmp_cksum = 0;
+  icmp->icmp_cksum = in_cksum ((u_short *) icmp, len);
+#else
   icmp->type = ICMP_ECHO;
   icmp->code = 0;
 
   len = 8 + datalen;
   icmp->checksum = 0;
   icmp->checksum = in_cksum ((u_short *) icmp, len);
-
+#endif
   memset (&soca, 0, sizeof (soca));
   soca.sin_family = AF_INET;
   soca.sin_addr = *dst;

@@ -115,5 +115,9 @@ ipv6_is_enabled ();
 
 gchar *
 gvm_routethrough (struct sockaddr_storage *, struct sockaddr_storage *);
+#ifdef __APPLE__
+#define s6_addr16   __u6_addr.__u6_addr16
 
+#define s6_addr32   __u6_addr.__u6_addr32
+#endif
 #endif /* not _GVM_NETWORKING_H */

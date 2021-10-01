@@ -39,7 +39,10 @@
 #include <netinet/ip6.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/tcp.h>
+#if defined __APPLE__
+#else
 #include <netpacket/packet.h> /* for sockaddr_ll */
+#endif
 #include <pcap.h>
 #include <pthread.h>
 #include <stdlib.h>

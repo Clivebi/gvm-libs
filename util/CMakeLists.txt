@@ -39,7 +39,7 @@ pkg_check_modules (GIO REQUIRED gio-2.0>=2.42)
 pkg_check_modules (GNUTLS REQUIRED gnutls>=3.2.15)
 
 # for uuidutils we need uuidlib
-pkg_check_modules (UUID REQUIRED uuid>=2.25.0)
+pkg_check_modules (UUID REQUIRED uuid>=1.6.0)
 
 # for sshutils we need libssh
 pkg_check_modules (LIBSSH REQUIRED libssh>=0.6.0)
@@ -76,6 +76,7 @@ else (NOT GPGME)
 endif (NOT GPGME)
 
 
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")  
 message (STATUS "Looking for libcrypt...")
 find_library (CRYPT crypt)
 message (STATUS "Looking for libcrypt... ${CRYPT}")
@@ -89,6 +90,7 @@ else (NOT CRYPT)
     endif()
     set (CRYPT_LDFLAGS "-lcrypt")
 endif (NOT CRYPT)
+endif()
 
 message (STATUS "Looking for libgcrypt...")
 find_library (GCRYPT gcrypt)
@@ -153,7 +155,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 endif()
 
 include_directories (${GLIB_INCLUDE_DIRS} ${GPGME_INCLUDE_DIRS} ${GCRYPT_INCLUDE_DIRS}
-                     ${LIBXML2_INCLUDE_DIRS})
+                     ${LIBXML2_INCLUDE_DIRS} ${INCLUDEDIR})
 
 set (FILES passwordbasedauthentication.c compressutils.c fileutils.c gpgmeutils.c kb.c ldaputils.c
            nvticache.c radiusutils.c serverutils.c sshutils.c uuidutils.c
@@ -163,14 +165,14 @@ set (HEADERS passwordbasedauthentication.h authutils.h compressutils.h fileutils
              ldaputils.h nvticache.h radiusutils.h serverutils.h sshutils.h
              uuidutils.h xmlutils.h)
 
-if (BUILD_STATIC)
+if (NOT BUILD_SHARED_LIBS)
   add_library (gvm_util_static STATIC ${FILES})
   set_target_properties (gvm_util_static PROPERTIES OUTPUT_NAME "gvm_util")
   set_target_properties (gvm_util_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
   set_target_properties (gvm_util_static PROPERTIES PUBLIC_HEADER "${HEADERS}")
-endif (BUILD_STATIC)
+endif (NOT BUILD_SHARED_LIBS)
 
-if (BUILD_SHARED)
+if (BUILD_SHARED_LIBS)
   add_library (gvm_util_shared SHARED ${FILES})
   set_target_properties (gvm_util_shared PROPERTIES OUTPUT_NAME "gvm_util")
   set_target_properties (gvm_util_shared PROPERTIES CLEAN_DIRECT_OUTPUT 1)
@@ -183,8 +185,8 @@ if (BUILD_SHARED)
                          ${RADIUS_LDFLAGS} ${LIBSSH_LDFLAGS} ${GNUTLS_LDFLAGS}
                          ${GCRYPT_LDFLAGS} ${LDAP_LDFLAGS} ${REDIS_LDFLAGS}
                          ${LIBXML2_LDFLAGS} ${UUID_LDFLAGS}
-                         ${LINKER_HARDENING_FLAGS} ${CRYPT_LDFLAGS})
-endif (BUILD_SHARED)
+                         ${LINKER_HARDENING_FLAGS} ${CRYPT_LDFLAGS} gvm_base_shared)
+endif (BUILD_SHARED_LIBS)
 
 
 ## Tests
@@ -233,19 +235,19 @@ configure_file (libgvm_util.pc.in ${CMAKE_BINARY_DIR}/libgvm_util.pc @ONLY)
 install (FILES ${CMAKE_BINARY_DIR}/libgvm_util.pc
          DESTINATION ${LIBDIR}/pkgconfig)
 
-if (BUILD_STATIC)
+if (NOT BUILD_SHARED_LIBS)
   install (TARGETS gvm_util_static
     RUNTIME DESTINATION ${BINDIR}
     ARCHIVE DESTINATION ${LIBDIR}
     PUBLIC_HEADER DESTINATION "${INCLUDEDIR}/gvm/util")
-endif (BUILD_STATIC)
+endif (NOT BUILD_SHARED_LIBS)
 
-if (BUILD_SHARED)
+if (BUILD_SHARED_LIBS)
   install (TARGETS gvm_util_shared
     RUNTIME DESTINATION ${BINDIR}
     LIBRARY DESTINATION ${LIBDIR}
     ARCHIVE DESTINATION ${LIBDIR}
     PUBLIC_HEADER DESTINATION "${INCLUDEDIR}/gvm/util")
-endif (BUILD_SHARED)
+endif (BUILD_SHARED_LIBS)
 
 ## End

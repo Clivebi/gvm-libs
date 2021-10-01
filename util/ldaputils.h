@@ -55,6 +55,8 @@ void ldap_auth_info_free (ldap_auth_info_t);
 ldap_auth_info_t
 ldap_auth_info_new (const gchar *, const gchar *, gboolean);
 
+#ifdef __APPLE__
+#else
 #ifdef ENABLE_LDAP_AUTH
 
 #include <ldap.h>
@@ -70,5 +72,7 @@ gboolean
 ldap_auth_dn_is_good (const gchar *);
 
 #endif /* ENABLE_LDAP_AUTH */
+
+#endif
 
 #endif /* not _GVM_LDAPUTILS_H */

@@ -26,7 +26,11 @@
 // UFC_crypt defines crypt_r when only when __USE_GNU is set
 // this shouldn't affect other implementations
 #define __USE_GNU
+#ifdef __APPLE__
+#include <unistd.h>
+#else
 #include <crypt.h>
+#endif
 // INVALID_HASH is used on verify when the given hash is a NULL pointer.
 // This is done to not directly jump to exit with a INVALID_HASH result
 // but rather keep calculating to make it a little bit harder to guess
@@ -178,7 +182,10 @@ pba_hash (struct PBASettings *setting, const char *password)
 {
   char *result = NULL, *settings = NULL, *tmp, *rslt;
   int i;
+#ifdef __APPLE__
+#else
   struct crypt_data *data = NULL;
+#endif
 
   if (!setting || !password)
     goto exit;
@@ -197,8 +204,12 @@ pba_hash (struct PBASettings *setting, const char *password)
       tmp--;
     }
 
+#ifdef __APPLE__
+  rslt = crypt (password, settings);
+#else
   data = calloc (1, sizeof (struct crypt_data));
   rslt = crypt_r (password, settings, data);
+#endif
   if (rslt == NULL)
     goto exit;
   result = malloc (CRYPT_OUTPUT_SIZE);
@@ -213,8 +224,11 @@ pba_hash (struct PBASettings *setting, const char *password)
         tmp[0] = '0';
     }
 exit:
+#ifdef __APPLE__
+#else
   if (data != NULL)
     free (data);
+#endif
   if (settings != NULL)
     free (settings);
   return result;
@@ -225,7 +239,10 @@ pba_verify_hash (const struct PBASettings *setting, const char *hash,
                  const char *password)
 {
   char *cmp, *tmp = NULL;
+#ifdef __APPLE__
+#else
   struct crypt_data *data = NULL;
+#endif
   int i = 0;
   enum pba_rc result = ERR;
   if (!setting)
@@ -234,7 +251,10 @@ pba_verify_hash (const struct PBASettings *setting, const char *hash,
     goto exit;
   if (pba_is_phc_compliant (hash) != 0)
     {
+#ifdef __APPLE__
+#else
       data = calloc (1, sizeof (struct crypt_data));
+#endif
       // manipulate hash to reapply pepper
       tmp = malloc (CRYPT_OUTPUT_SIZE);
       strncpy (tmp, hash ? hash : INVALID_HASH, CRYPT_OUTPUT_SIZE);
@@ -245,10 +265,14 @@ pba_verify_hash (const struct PBASettings *setting, const char *hash,
           if (setting->pepper[i] != 0)
             cmp[0] = setting->pepper[i];
         }
-      // some crypt_r implementations cannot handle if password is a
-      // NULL pointer and run into SEGMENTATION faults.
-      // Therefore we set it to ""
+        // some crypt_r implementations cannot handle if password is a
+        // NULL pointer and run into SEGMENTATION faults.
+        // Therefore we set it to ""
+#ifdef __APPLE__
+      cmp = crypt (password ? password : "", tmp);
+#else
       cmp = crypt_r (password ? password : "", tmp, data);
+#endif
       if (strcmp (tmp, cmp) == 0)
         result = VALID;
       else
@@ -270,8 +294,11 @@ pba_verify_hash (const struct PBASettings *setting, const char *hash,
         result = INVALID;
     }
 exit:
+  #ifdef __APPLE__
+  #else
   if (data != NULL)
     free (data);
+  #endif
   if (tmp != NULL)
     free (tmp);
   return result;

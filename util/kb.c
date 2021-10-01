@@ -629,7 +629,7 @@ redis2kbitem_single (const char *name, const redisReply *elt, int force_int)
   else
     {
       item->type = KB_TYPE_STR;
-      item->v_str = g_memdup (elt->str, elt->len + 1);
+      item->v_str = g_memdup2 (elt->str, elt->len + 1);
       item->len = elt->len;
     }
 
