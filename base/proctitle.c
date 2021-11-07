@@ -46,7 +46,7 @@ extern const char *__progname_full;
 #endif
 
 static int argv_len;
-static char **old_argv;
+static char **old_argv = NULL;
 extern char **environ;
 void *current_environ = NULL;
 
@@ -61,6 +61,7 @@ proctitle_init (int argc, char **argv)
 {
   int i = 0;
   char **envp = environ;
+    return;
 #if defined __FreeBSD__ || defined __APPLE__
   char *new_progname;
 #else
@@ -141,6 +142,7 @@ proctitle_set_args (const char *new_title, va_list args)
 void
 proctitle_set (const char *new_title, ...)
 {
+  return;
   va_list args;
 
   va_start (args, new_title);

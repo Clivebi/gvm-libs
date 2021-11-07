@@ -366,6 +366,7 @@ gvm_log_lock_init (void)
 void
 gvm_log_lock (void)
 {
+  gvm_log_lock_init();
   g_mutex_lock (logger_mutex);
 }
 
